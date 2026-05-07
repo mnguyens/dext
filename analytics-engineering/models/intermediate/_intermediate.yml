@@ -1,0 +1,58 @@
+version: 2
+
+models:
+  - name: int_employees_current
+    description: >
+      Latest version of each employee. One row per employee_id.
+      Deleted records are retained and flagged via is_deleted.
+    columns:
+      - name: employee_id
+        tests: [unique, not_null]
+
+  - name: int_suppliers_current
+    description: >
+      Latest version of each supplier. One row per supplier_id.
+      Deleted records are retained and flagged via is_deleted.
+    columns:
+      - name: supplier_id
+        tests: [unique, not_null]
+
+  - name: int_expense_claims_current
+    description: >
+      Latest version of each claim. One row per claim_id.
+      Deleted records are retained and flagged via is_deleted.
+    columns:
+      - name: claim_id
+        tests: [unique, not_null]
+
+  - name: int_expense_line_items_current
+    description: >
+      Latest version of each line item. One row per line_item_id.
+      Deleted records are retained and flagged via is_deleted.
+    columns:
+      - name: line_item_id
+        tests: [unique, not_null]
+
+  - name: int_employees_history
+    description: "Every CDC version of every employee, with valid_from/valid_to."
+    columns:
+      - name: employee_id
+        tests: [not_null]
+      - name: valid_from
+        tests: [not_null]
+
+  - name: int_expense_claims_history
+    description: "Every CDC version of every claim, with valid_from/valid_to."
+    columns:
+      - name: claim_id
+        tests: [not_null]
+      - name: valid_from
+        tests: [not_null]
+
+  - name: int_expense_line_items_history
+    description: "Every CDC version of every line item, with valid_from/valid_to."
+    columns:
+      - name: line_item_id
+        tests: [not_null]
+      - name: valid_from
+        tests: [not_null]
