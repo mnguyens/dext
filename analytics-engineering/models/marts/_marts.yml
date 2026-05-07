@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: dim_employees
+    description: "Current employee attributes. One row per employee_id."
+    columns:
+      - name: employee_id
+        tests: [unique, not_null]
+
+  - name: dim_suppliers
+    description: "Current supplier attributes. One row per supplier_id."
+    columns:
+      - name: supplier_id
+        tests: [unique, not_null]
+
+  - name: fct_expense_claims
+    description: "One row per current expense claim. Joins current employee and current supplier."
+    columns:
+      - name: claim_id
+        tests: [unique, not_null]
+      - name: employee_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_employees')
+              field: employee_id
+      - name: supplier_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_suppliers')
+              field: supplier_id
+
+  - name: fct_expense_claim_audit_log
+    description: >
+      One row per change for claims and their line items.
+      Filter changed_field='status' for the status timeline.
+      Filter changed_after_first_approval for compliance review.
+    columns:
+      - name: claim_id
+        tests: [not_null]
+      - name: valid_from
+        tests: [not_null]
