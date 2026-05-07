@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: stg_employees
+    description: "Raw employees - contains every CDC version per employee."
+    columns:
+      - name: employee_id
+        description: "Natural key. Not unique here — many CDC versions per employee."
+        tests:
+          - not_null
+      - name: _sdc_extracted_at
+        tests:
+          - not_null
+
+  - name: stg_suppliers
+    description: "Raw suppliers - contains every CDC version per supplier."
+    columns:
+      - name: supplier_id
+        description: "Natural key. Not unique here — many CDC versions per supplier."
+        tests:
+          - not_null
+      - name: _sdc_extracted_at
+        tests:
+          - not_null
+
+  - name: stg_expense_claims
+    description: "Raw expense claims - contains every CDC version per claim."
+    columns:
+      - name: claim_id
+        description: "Natural key. Not unique — many CDC versions per claim."
+        tests:
+          - not_null
+      - name: _sdc_extracted_at
+        tests:
+          - not_null
+
+  - name: stg_expense_line_items
+    description: "Raw expense line items - contains every CDC version per line item."
+    columns:
+      - name: line_item_id
+        description: "Natural key. Not unique — many CDC versions per line item."
+        tests:
+          - not_null
+      - name: _sdc_extracted_at
+        tests:
+          - not_null
