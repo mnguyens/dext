@@ -1,13 +1,31 @@
 -- One row per change for claims and their line items.
 
 {{ config(
-        materialized='table',
-        unique_key=['claim_id', 'entity_type', 'entity_id', 'changed_field', 'valid_from']
-    ) 
+    materialized='incremental',
+    unique_key=['entity_type', 'entity_id', 'changed_field', 'valid_from'],
+    on_schema_change='sync_all_columns'
+) 
 }}
 
-with claim_history as (
-   select
+with
+{%- if is_incremental() %}
+watermark as (
+    select coalesce(max(valid_from), '1900-01-01'::timestamp) as ts from {{ this }}
+),
+changed_claims as (
+    select distinct claim_id
+    from {{ ref('int_expense_claims_history') }}
+    where valid_from > (select ts from watermark)
+),
+changed_lines as (
+    select distinct line_item_id
+    from {{ ref('int_expense_line_items_history') }}
+    where valid_from > (select ts from watermark)
+),
+{%- endif %}
+
+claim_history as (
+     select
         claim_id,
         valid_from,
         status,
@@ -17,12 +35,15 @@ with claim_history as (
         lag(total_amount) over w as prev_total_amount,
         lag(is_deleted) over w as prev_is_deleted,
         lag(valid_from) over w as prev_valid_from
-   from {{ ref('int_expense_claims_history') }}
-   window w as (partition by claim_id order by valid_from)
+     from {{ ref('int_expense_claims_history') }}
+     {%- if is_incremental() %}
+     where claim_id in (select claim_id from changed_claims)
+     {%- endif %}
+     window w as (partition by claim_id order by valid_from)
 ),
 
 line_history as (
-   select
+     select
         line_item_id,
         claim_id,
         valid_from,
@@ -37,8 +58,11 @@ line_history as (
         lag(receipt_url) over w as prev_receipt_url,
         lag(is_deleted) over w as prev_is_deleted,
         lag(valid_from) over w as prev_valid_from
-   from {{ ref('int_expense_line_items_history') }}
-   window w as (partition by line_item_id order by valid_from)
+     from {{ ref('int_expense_line_items_history') }}
+     {%- if is_incremental() %}
+     where line_item_id in (select line_item_id from changed_lines)
+     {%- endif %}
+     window w as (partition by line_item_id order by valid_from)
 ),
 
 claim_first_approved as (
@@ -46,6 +70,10 @@ claim_first_approved as (
         claim_id,
         min(case when status = 'approved' and not is_deleted then valid_from end) as first_approved_at
    from {{ ref('int_expense_claims_history') }}
+   {%- if is_incremental() %}
+    where claim_id in (select claim_id from changed_claims)
+       or claim_id in (select claim_id from changed_lines)
+    {%- endif %}
    group by 1
 ),
 

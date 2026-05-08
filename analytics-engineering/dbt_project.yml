@@ -6,6 +6,7 @@ profile: 'dext_analytics'
 
 model-paths: ["models"]
 seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
 test-paths: ["tests"]
 analysis-paths: ["analyses"]
 macro-paths: ["macros"]
@@ -36,3 +37,7 @@ models:
     marts:
       +materialized: table
       +schema: marts
+
+snapshots:
+  dext_analytics:
+    +schema: snapshots

@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: singer
+    description: >
+      Singer CDC landing for the expenses domain. In production these are
+      populated by the Singer tap on a continuous schedule. In local dev
+      they are populated by `dbt seed` from the CSVs under seeds/.
+    schema: raw
+    loaded_at_field: _sdc_extracted_at
+    freshness:
+      warn_after: { count: 1,  period: hour }
+      error_after: { count: 6, period: hour }
+    tables:
+      - name: raw_expense_claims
+        identifier: raw_expense_claims
+      - name: raw_expense_line_items
+        identifier: raw_expense_line_items
+      - name: raw_suppliers
+        identifier: raw_suppliers
+      - name: raw_employees
+        identifier: raw_employees

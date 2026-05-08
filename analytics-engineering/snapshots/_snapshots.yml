@@ -1,0 +1,26 @@
+version: 2
+
+snapshots:
+  - name: snap_expense_claims
+    description: >
+      SCD2 history of every claim. One row per (claim_id, dbt_valid_from).
+      Source of truth for compliance history; outlives raw retention.
+    columns:
+      - name: claim_id
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [claim_id, dbt_valid_from]
+
+  - name: snap_expense_line_items
+    description: "SCD2 history of every line item. One row per (line_item_id, dbt_valid_from)."
+    columns:
+      - name: line_item_id
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [line_item_id, dbt_valid_from]

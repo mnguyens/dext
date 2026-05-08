@@ -12,4 +12,4 @@ select
     updated_at,
     _sdc_extracted_at,
     _sdc_deleted_at
-from {{ ref('raw_expense_claims') }}
+from {{ source('singer', 'raw_expense_claims') }}

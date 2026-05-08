@@ -13,9 +13,8 @@ select
     category,
     receipt_url,
     created_at,
-    updated_at as valid_from,
-    lead(updated_at) over (partition by claim_id order by updated_at) as valid_to,
-    _sdc_extracted_at,
-    row_number() over (partition by claim_id order by _sdc_extracted_at) as version_number,
-    _sdc_deleted_at is not null as is_deleted
-from {{ ref('stg_expense_line_items') }}
+    updated_at,
+    is_deleted,
+    dbt_valid_from as valid_from,
+    dbt_valid_to as valid_to
+from {{ ref('snap_expense_line_items') }}
