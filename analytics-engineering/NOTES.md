@@ -1,9 +1,10 @@
 # Implementation Notes
 
 ## Overview
-2 approaches:
-- in `main`: model that works for this exercise as the data is from seeds which already contain all the historical edits and status journeys that can address the business questions correctly; 
-- in `snapshot-model`: another modelling approach using snapshot for CDC in live production environment.
+3 approaches:
+- in `main`: model that works for this exercise as the data is from seeds which already contain all the historical edits and status journeys that can address the business questions correctly;
+- in `snapshot-model`: production modelling using `dbt snapshot` — appropriate for key-based CDC, low frequency change (hourly, daily)
+- in `incremental-model`: production modelling using append-only incremental history models — appropriate for log-based CDC, high-frequency changes, preserves every captured version.
 
 ## Modeling approach
 ### Three layers (`main`):
@@ -15,7 +16,7 @@
 
 Note: I skipped a fact table for line_items because none of the listed business questions require line item grain — Q1, Q2, Q3 and Q5 are claim-level, and Q4 which may need line-level changes are available in the audit log table.
 
-### Scaling with snapshots for CDC in production (`snapshot-model`)
+### Scaling with snapshots (`snapshot-model`)
 
 The `_history` views re-derive history from raw CDC versions on every `dbt run`. Fine on this seed; doesn't scale. Converting to dbt snapshots changes the lineage shape:
 
@@ -41,7 +42,29 @@ source: singer.raw_*
             └→ fct_expense_claims (table)
 ```
 
-> **Known issue:** on this branch `dbt snapshot` only captures current state per run, so the seed's CDC history is lost. In production it would accumulate over time; for this take-home exercise with seeds, `main` answers Q4/Q5 more correctly.
+> **Known issue:** on this branch `dbt snapshot` only captures current state per run, so the seed's CDC history is lost. In production it would accumulate over time but still only at run cadence. For higher-fidelity CDC see `incremental-model` below.
+
+### Scaling with incremental history (`incremental-model`)
+
+When upstream is configured in log-based mode the raw table already contains every change row, `dbt snapshot` would squash these down to one-row-per-run; an append-only incremental model preserves every version instead.
+
+```
+source: singer.raw_*  (log-based: one row per CDC event)
+  └→ stg_*                       (view: cast/clean only)
+       ├→ int_*_history          (incremental: append-only, one row per _sdc_extracted_at)
+       │    └→ fct_expense_claim_audit_log  (table: lag()-based change detection)
+       └→ int_*_current          (view: dedup latest per key)
+            ├→ dim_*             (table)
+            └→ fct_expense_claims (table)
+```
+
+Why this beats snapshots for log-based CDC:
+- captures every landed CDC version, not just a state at run time.
+- drop and `dbt run` to reconstruct the entire history from raw. Snapshots are stateful and lose squashed versions permanently.
+
+Trade-offs:
+- Requires log-based CDC. With key-based replication the raw table only holds current state and there's no history to capture — use snapshots instead.
+- `valid_to` is not stored in the history table (window functions don't work correctly inside append-only incrementals). Compute downstream via a view if needed.
 
 ## CDC handling
 **Latest version per entity** for `int_<entity>_current` tables
@@ -53,7 +76,8 @@ source: singer.raw_*
      - Uses updated_at and lead(updated_at) partitioned by key for `valid_from` and `valid_to` for each version update.
      - Has version_number for each update
      - Deleted records are kept with `is_deleted = true`
-- In `snapshot-model`: downstream from snap_*
+- In `snapshot-model`: downstream from `snap_*`.
+- In `incremental-model`: append-only incremental on `_sdc_extracted_at`; `valid_from = _sdc_extracted_at`; `valid_to` needs to be computed downstream.
  
 **Audit log generation**:
 - Log changes for each tracked attribute (status, total_amount on claims; amount, category, description, receipt_url on line items), a UNION ALL query emits one row per version-to-version change using `LAG()`.
